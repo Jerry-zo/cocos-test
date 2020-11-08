@@ -28,7 +28,18 @@ USING_NS_CC;
 
 Scene* HelloWorld::createScene()
 {
-    return HelloWorld::create();
+    //支持物理引擎的Scene
+    auto scene = Scene::createWithPhysics();
+    //显示物理引擎调试界面 --- 有红框
+    //scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
+
+    auto layer = HelloWorld::create();
+
+    scene->addChild(layer);
+
+    return scene;
+
+    //return HelloWorld::create();
 }
 
 // Print useful error message instead of segfaulting when files are not there.
@@ -126,9 +137,13 @@ void HelloWorld::add_monster(float dt)
     // Add monster
     monster->setPosition(Vec2(visibleSize.width, visibleSize.height / 2 + origin.y));
     this->addChild(monster);
-    auto monst_phy = PhysicsBody::createBox(Size(65.0f, 81.0f), PhysicsMaterial(0.1f, 1.0f, 0.0f));
+    auto monst_phy = PhysicsBody::createBox(monster->getContentSize(), PhysicsMaterial(0.0f, 0.0f, 0.0f));
     monst_phy->setDynamic(false);
-    // monster->addComponent(monst_phy); //加入这段就崩了
+    monst_phy->setContactTestBitmask(0xFFFFFFFF);
+    // play_phy->setTag(10); //设置tag
+    //monst_phy->setDynamic(false);
+    // monst_phy->setContactTestBitmask(1);
+    monster->setPhysicsBody(monst_phy);
     // 定义移动的object
     auto actionMove = MoveTo::create(3, Vec2(0, visibleSize.height / 2 + origin.y));
     // 定义消除的Object。怪物移出屏幕后被消除，释放资源。
@@ -145,8 +160,22 @@ bool HelloWorld::onContactBegin(cocos2d::PhysicsContact& contact)
     auto nodeB = contact.getShapeB()->getBody()->getNode();
 
     if (nodeA && nodeB) {
-        if (nodeA->getTag() == 10 && nodeB->getTag() == 10) {
-            //Director::getInstance()->end();
+        // if (nodeA->getPhysicsBody()->getContactTestBitmask() == 1 && nodeB->getPhysicsBody()->getContactTestBitmask() == 1) {
+        if (nodeA->getTag() == 10 || nodeB->getTag() == 10) {
+            HWND hwnd = NULL;
+
+            //获取当前窗口句柄
+            EnumThreadWindows(
+                GetCurrentThreadId(),
+                (WNDENUMPROC)[](HWND h, LPARAM l)->BOOL {
+                    *(HWND*)l = h;
+                    return FALSE;
+                },
+                (LPARAM)&hwnd
+            );
+            
+            MessageBox(hwnd, L"川建国死了", L"Game Over", MB_OK);
+            Director::getInstance()->end();
             return true;
         }
     }
@@ -162,10 +191,6 @@ bool HelloWorld::player_init()
     auto visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
     // 添加一个人物精灵
-    // 碰撞实体
-    auto play_phy = PhysicsBody::createBox(Size(65.0f, 81.0f), PhysicsMaterial(0.1f, 1.0f, 0.0f));
-    play_phy->setDynamic(false);
-    play_phy->setTag(10);
     _player = Sprite::create("player.png");
     if (_player == nullptr) {
         problemLoading("player.png");
@@ -173,7 +198,13 @@ bool HelloWorld::player_init()
     }
     else {
         _player->setPosition(Vec2(visibleSize.width * 0.2, visibleSize.height / 2 + origin.y));
-        //_player->addComponent(play_phy); //加入就崩
+        // 碰撞实体
+        auto play_phy = PhysicsBody::createBox(_player->getContentSize(), PhysicsMaterial(0.0f, 0.0f, 0.0f));
+        // play_phy->setContactTestBitmask(1);
+        play_phy->setDynamic(false);
+        play_phy->setContactTestBitmask(0xFFFFFFFF);
+        _player->setTag(10); //设置tag
+        _player->setPhysicsBody(play_phy);
         _player_jump = false;
         this->addChild(_player, 1);
     }
@@ -188,7 +219,7 @@ bool HelloWorld::player_init()
         auto callfunction = [&]() {
             _player_jump = false;
         };
-        auto jump = JumpBy::create(0.5, Vec2(0, 0), 100, 1.5f);
+        auto jump = JumpBy::create(0.5f, Vec2(0, 0), 100, 1.0f);
         CallFunc* callFunc = CallFunc::create(callfunction);
         _player->runAction(Sequence::create(jump, callFunc, nullptr));
         return true;
