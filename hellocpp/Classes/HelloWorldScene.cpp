@@ -174,7 +174,7 @@ bool HelloWorld::onContactBegin(cocos2d::PhysicsContact& contact)
                 (LPARAM)&hwnd
             );
             
-            MessageBox(hwnd, L"川建国死了", L"Game Over", MB_OK);
+            MessageBox(hwnd, L"你被撞倒了", L"Game Over", MB_OK);
             Director::getInstance()->end();
             return true;
         }
